@@ -1,0 +1,20 @@
+# Blocked terms - one per line. Lines starting with # are comments.
+#
+# A visitor is disconnected (their Firefox window is closed) if a term appears in:
+#   - what they type into the address/search bar
+#   - the address (URL) of any page they end up on, including redirects and links
+#   - the page title
+#   - (only if server.py is started with --scan-content) the visible text of the page
+#
+# Matching ignores upper/lower case and URL encoding ("bad%20word" and "BAD WORD" both match
+# the term "bad word"). Terms of 5+ characters also match when the separators are removed or
+# changed ("bad-word", "bad_word", "badword").
+# It is a substring match: the term "ass" would also match "class". Use a regex for whole words.
+#
+# Regex lines start with re:   e.g.   re:\bass\b
+#
+# This file is re-read by server.py every minute, so after you push a change to GitHub and
+# Vercel redeploys, it takes effect within about a minute - no restart needed.
+# NOTE: because it lives in the website folder, it is publicly readable at /blockedterms.txt.
+#
+# Add your terms below:
