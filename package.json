@@ -1,0 +1,12 @@
+{
+  "name": "firefox-remote",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node render-server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
