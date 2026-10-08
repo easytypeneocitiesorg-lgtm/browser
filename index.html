@@ -45,22 +45,38 @@
   #overlay .big{font-size:60px;font-weight:700;line-height:1.05;color:var(--text);font-variant-numeric:tabular-nums}
   #overlay button{pointer-events:auto;margin-top:12px;padding:8px 16px}
 
-  #foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;background:var(--panel);border-top:1px solid var(--line)}
-  #typebox{flex:1;min-width:160px;display:flex;gap:6px}
-  #typebox input{flex:1;min-width:0;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
-  #status{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--dim);font-variant-numeric:tabular-nums}
-  #dot{width:9px;height:9px;border-radius:50%;background:var(--red)}
+  /* top strip: key (left) and key ID (right) */
+  #head{display:flex;align-items:center;gap:8px;padding:4px 8px;background:#0d1016;border-bottom:1px solid var(--line);min-height:36px}
+  #keybox{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+  #key{width:128px;flex:0 0 auto;height:26px;padding:0 8px;background:var(--ink);border:1px solid var(--line);border-radius:6px;
+    font:13px ui-monospace,Menlo,Consolas,monospace}
+  #key:focus{border-color:var(--blue)}
+  #keybtn{height:26px;padding:0 12px;font-size:12px;border-radius:6px}
+  #keymsg{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;color:var(--dim)}
+  #keymsg.ok{color:var(--ok)} #keymsg.err{color:var(--amber)}
+  #tagbadge{flex:0 0 auto;display:flex;align-items:center;gap:6px;height:24px;padding:0 9px;border:1px solid var(--line);border-radius:6px;
+    font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+  #tagbadge[hidden]{display:none}
+  #tagbadge b{font:600 13px ui-monospace,Menlo,Consolas,monospace;color:var(--text);letter-spacing:.1em}
+
+  /* compact bottom bar */
+  #foot{display:flex;gap:4px;align-items:center;padding:3px 6px;background:var(--panel);border-top:1px solid var(--line);font-size:12px}
+  #foot button,#foot select,#foot input{height:24px;padding:0 8px;font-size:12px;border-radius:6px}
+  #foot input{flex:1 1 90px;min-width:70px;max-width:320px;background:var(--ink);border:1px solid var(--line)}
+  #foot select{padding:0 4px}
+  #status{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--dim);font-variant-numeric:tabular-nums;padding-left:4px}
+  #dot{width:8px;height:8px;border-radius:50%;background:var(--red)}
   #dot.on{background:var(--ok)}
   #dot.busy{background:var(--amber)}
 
   details{background:var(--panel);border-top:1px solid var(--line);padding:0 8px}
   #jsbox[hidden]{display:none}
-  summary{padding:8px 0;cursor:pointer;color:var(--dim)}
+  summary{padding:4px 0;font-size:12px;cursor:pointer;color:var(--dim)}
   #console{display:grid;gap:6px;padding-bottom:8px}
   #console textarea{width:100%;height:70px;resize:vertical;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:13px ui-monospace,Menlo,Consolas,monospace}
   #console pre{margin:0;max-height:140px;overflow:auto;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:13px ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
 
-  #toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:#3a2024;border:1px solid #7a3038;color:#ffd5d5;
+  #toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);background:#3a2024;border:1px solid #7a3038;color:#ffd5d5;
     padding:8px 14px;border-radius:8px;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s}
   #toast.show{opacity:1}
 
@@ -77,6 +93,16 @@
 </head>
 <body>
 <div id="app">
+  <div id="head">
+    <div id="keybox">
+      <input id="key" type="text" maxlength="12" spellcheck="false" autocomplete="off" autocapitalize="off"
+             placeholder="Enter your key" aria-label="Access key">
+      <button id="keybtn" class="primary">Verify</button>
+      <span id="keymsg" role="status" aria-live="polite"></span>
+    </div>
+    <div id="tagbadge" hidden title="Your key's ID"><span>ID</span><b id="tagid"></b></div>
+  </div>
+
   <div id="tabs" role="tablist" aria-label="Browser tabs"></div>
 
   <div class="bar">
@@ -94,24 +120,22 @@
   </div>
 
   <div id="foot">
-    <div id="typebox">
-      <input id="typetext" type="text" placeholder="Type text into the focused field on the page" aria-label="Text to type">
-      <button id="typesend">Type it</button>
-    </div>
+    <input id="typetext" type="text" placeholder="Type text to send&hellip;" aria-label="Text to type into the page">
+    <button id="typesend" title="Type this text into the focused field on the page">Send</button>
     <select id="vp" title="Browser window size" aria-label="Browser window size">
-      <option value="fit">Fit to this window</option>
-      <option value="1280x720" selected>1280 &times; 720</option>
-      <option value="1366x768">1366 &times; 768</option>
-      <option value="1600x900">1600 &times; 900</option>
-      <option value="1920x1080">1920 &times; 1080</option>
+      <option value="fit">Fit</option>
+      <option value="1280x720" selected>1280&times;720</option>
+      <option value="1366x768">1366&times;768</option>
+      <option value="1600x900">1600&times;900</option>
+      <option value="1920x1080">1920&times;1080</option>
     </select>
     <select id="qual" title="Image quality" aria-label="Image quality">
       <option value="45,0.6">Fast</option>
-      <option value="65,1" selected>Balanced</option>
+      <option value="65,1" selected>Normal</option>
       <option value="85,1">Sharp</option>
     </select>
-    <button id="copysel" class="hide-s" title="Copy the text selected in Firefox to your clipboard">Copy selection</button>
-    <button id="save" class="hide-s" title="Download the current frame">Save frame</button>
+    <button id="copysel" class="hide-s" title="Copy the text selected in Firefox to your clipboard">Copy</button>
+    <button id="save" class="hide-s" title="Download the current frame as an image">Save</button>
     <div id="status"><span id="dot"></span><span id="fps">0 fps</span></div>
   </div>
 
@@ -142,8 +166,23 @@
   const manual = params.get('server') || '';          // optional override, handy for testing
   const token = params.get('token') || '';
   let ws = null, loading = false, retry = null;
-  let phase = 'connecting';   // connecting -> queued -> active -> ended
-  let ended = false, idleSecs = 180;
+  let phase = 'locked';       // locked (no key yet) -> connecting -> queued -> active -> ended
+  let ended = false, idleSecs = 180, keyInfo = null;
+
+  const store = {
+    get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  };
+  // A random id for this browser. A key is tied to the first device that uses it.
+  const device = (() => {
+    let d = store.get('fr_device');
+    if (!d || !/^[A-Za-z0-9_-]{16,64}$/.test(d)) {
+      d = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '')
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+      store.set('fr_device', d);
+    }
+    return d;
+  })();
 
   const send = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
 
@@ -155,7 +194,17 @@
     sleep: 'Your device went to sleep or its lid was closed, so your Firefox window was closed.',
     missed_turn: 'It was your turn, but this tab was in the background, so your spot went to the next person.',
     error: 'Firefox stopped working on the host computer.',
+    replaced: 'This key was opened in another tab or window, so this session ended.',
+    verify_failed: 'We couldn\u2019t verify your key just now. Please try again in a moment.',
   }[r] || 'Your session ended.');
+
+  // Problems with the key itself: shown in the key box too, and no "refresh" needed - just enter a valid key.
+  const KEYEND = {
+    key_revoked: ['Your key is no longer valid', 'It was deactivated.'],
+    key_expired: ['Your key is no longer valid', 'It has expired.'],
+    key_used: ['This key can\u2019t be used', 'This key has already been used.'],
+    key_invalid: ['This key can\u2019t be used', 'Please enter a valid key.'],
+  };
 
   function setOverlay(title, sub, o) {
     const el = $('#overlay');
@@ -171,18 +220,26 @@
     }
   }
 
-  // Final state: the session is over. No automatic reconnect - the person refreshes to rejoin / queue.
-  function end(text) {
+  // Final state: the session is over. No automatic reconnect - the person refreshes (or enters a key) to rejoin.
+  function end(reason) {
     if (ended) return;
     ended = true; phase = 'ended'; clearTimeout(retry);
     if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} ws = null; }
     gotFrame = false; latest = null;
     canvas.classList.add('idle');
     $('#dot').className = '';
+    $('#tagbadge').hidden = true;
     if (dlg.open) dlg.close();
+    if (KEYEND[reason]) {
+      const [title, why] = KEYEND[reason];
+      document.title = 'Key problem \u2013 Firefox Remote';
+      setKeyMsg(why, 'err');
+      setOverlay(title, why + ' Enter a valid key in the box at the top left to continue.');
+      return;
+    }
     document.title = 'Disconnected \u2013 Firefox Remote';
     setOverlay('You\u2019ve been disconnected',
-      text + ' Refresh the page to reconnect \u2013 if all the browsers are in use, you\u2019ll be placed in line.',
+      REASONS(reason) + ' Refresh the page to reconnect \u2013 if all the browsers are in use, you\u2019ll be placed in line.',
       {button: true});
   }
 
@@ -220,7 +277,7 @@
     ws.binaryType = 'arraybuffer';
     ws.onopen = () => {
       $('#dot').className = 'on';
-      send({t: 'hello', visible: !document.hidden});
+      send({t: 'hello', visible: !document.hidden, key: keyInfo ? keyInfo.key : '', device});
       applyQuality();
       if (phase === 'connecting') setOverlay('Connecting\u2026', 'Checking for a free browser');
     };
@@ -232,7 +289,7 @@
         retry = setTimeout(connect, 1500);
         return;
       }
-      end(REASONS('lost'));
+      end('lost');
     };
     ws.onmessage = ev => {
       if (typeof ev.data !== 'string') return onFrame(ev.data);
@@ -255,7 +312,7 @@
           document.title = 'Firefox Remote';
           setOverlay('Starting Firefox\u2026', 'Your own browser window is opening on the host computer.');
         },
-        kicked: m => end(REASONS(m.reason)),
+        kicked: m => end(m.reason),
         idle_warn: m => { idleWarn = true; toast(`Still there? You\u2019ll be disconnected in ${m.secs} seconds unless you move the mouse or type.`, false, 30000); },
         js_result: m => { const o = $('#out'); o.hidden = false; o.textContent = m.text; },
         selection: onSelection,
@@ -461,13 +518,64 @@
     if (text) { e.preventDefault(); send({t: 'text', text}); }
   });
 
+  /* ---------- access key ---------- */
+  const KEY_MSG = {
+    invalid: 'Please enter a valid key.',
+    used: 'This key has already been used.',
+    deactivated: 'This key is no longer valid.',
+    expired: 'This key has expired.',
+    rate: 'Too many attempts. Please wait a few minutes and try again.',
+    error: 'Couldn\u2019t reach the verification service. Please try again.',
+  };
+  const KIND = {s: 'Standard', d: 'Demo', p: 'Permanent'};
+  const setKeyMsg = (t, cls) => { const e = $('#keymsg'); e.textContent = t || ''; e.className = cls || ''; e.title = t || ''; };
+
+  function timeLeft(ms) {
+    const m = Math.floor(ms / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    if (d >= 1) return `${d}d ${h % 24}h`;
+    if (h >= 1) return `${h}h ${m % 60}m`;
+    return `${Math.max(m, 1)}m`;
+  }
+  function showKeyInfo() {
+    if (!keyInfo) return;
+    $('#tagid').textContent = keyInfo.tag;
+    $('#tagbadge').hidden = false;
+    const left = !keyInfo.expires ? 'never expires'
+      : keyInfo.expires <= Date.now() ? 'expired' : timeLeft(keyInfo.expires - Date.now()) + ' left';
+    setKeyMsg(`\u2713 Verified \u00b7 ${KIND[keyInfo.kind] || 'Key'} \u00b7 ${left}`, 'ok');
+  }
+  setInterval(() => { if ($('#keymsg').className === 'ok') showKeyInfo(); }, 30000);
+
+  async function verifyKey(raw) {
+    const key = raw.trim().replace(/^./, c => c.toLowerCase());
+    if (!key) { setKeyMsg(KEY_MSG.invalid, 'err'); return; }
+    $('#keybtn').disabled = true; setKeyMsg('Checking\u2026');
+    let r;
+    try {
+      const resp = await fetch('/api/verify', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key, device})});
+      r = await resp.json();
+    } catch (e) { r = {ok: false, reason: 'error'}; }
+    $('#keybtn').disabled = false;
+    if (!r.ok) { setKeyMsg(KEY_MSG[r.reason] || KEY_MSG.invalid, 'err'); return; }
+
+    store.set('fr_key', r.key);
+    $('#key').value = r.key;
+    // A different key, or the session already ended: start clean (the saved key is verified again on load).
+    if (ended || (keyInfo && keyInfo.key !== r.key)) { location.reload(); return; }
+    keyInfo = r;
+    showKeyInfo();
+    if (phase === 'locked') { phase = 'connecting'; setOverlay('Connecting\u2026', 'Checking for a free browser'); connect(); }
+  }
+  $('#keybtn').onclick = () => verifyKey($('#key').value);
+  $('#key').addEventListener('keydown', e => { if (e.key === 'Enter') verifyKey($('#key').value); });
+
   /* ---------- session rules ---------- */
   let idleWarn = false, lastAct = 0, lastTick = Date.now();
 
   // 1) Switching to another browser tab ends the session (and tells the server).
   document.addEventListener('visibilitychange', () => {
     send({t: 'vis', visible: !document.hidden});
-    if (document.hidden && phase === 'active') end(REASONS('hidden'));
+    if (document.hidden && phase === 'active') end('hidden');
   });
 
   // 2) Heartbeat: the host drops you if it stops hearing from you (closed lid, no network).
@@ -476,7 +584,7 @@
   // 3) If this page's timers were frozen (laptop lid closed / device slept), end on wake-up.
   setInterval(() => {
     const now = Date.now();
-    if (phase === 'active' && now - lastTick > 8000) end(REASONS('sleep'));
+    if (phase === 'active' && now - lastTick > 8000) end('sleep');
     lastTick = now;
   }, 1000);
 
@@ -495,7 +603,14 @@
   window.addEventListener('pagehide', () => send({t: 'leave'}));
 
   renderTabs([]);
-  connect();
+  if (isLocal) {                      // served by server.py itself: local testing, run it with --no-keys
+    $('#keybox').style.visibility = 'hidden';
+    phase = 'connecting'; connect();
+  } else {
+    setOverlay('Enter your key', 'Type your key in the box at the top left and press Verify.');
+    const saved = store.get('fr_key');          // returning visitors are verified automatically
+    if (saved) { $('#key').value = saved; verifyKey(saved); } else $('#key').focus();
+  }
 })();
 </script>
 </body>
