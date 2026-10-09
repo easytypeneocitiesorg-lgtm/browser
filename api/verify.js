@@ -2,7 +2,10 @@
 const redis = require("./_redis");
 const { verifyMany, clientIp, readBody } = require("./_keys");
 
+const cors = require("./_cors");
+
 module.exports = async (req, res) => {
+  if (cors(req, res)) return;
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ ok: false, reason: "invalid" });
   const body = readBody(req);

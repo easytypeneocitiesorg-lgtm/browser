@@ -2,7 +2,10 @@
 // when a visitor joins, and every few seconds afterwards to catch deactivated / expired keys.
 const { verifyMany, serverAuth, readBody } = require("./_keys");
 
+const cors = require("./_cors");
+
 module.exports = async (req, res) => {
+  if (cors(req, res)) return;
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   if (!serverAuth(req, res)) return;
