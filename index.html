@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Firefox Remote</title>
+<style>
+  :root{
+    --ink:#15181f; --panel:#1e222b; --raise:#272c37; --line:#323847;
+    --text:#e8eaf0; --dim:#8d96a8; --blue:#6c9bff; --amber:#ffb454; --red:#ff6b6b; --ok:#5fd39a;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--ink);color:var(--text);
+    font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  #app{display:flex;flex-direction:column;height:100%;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+
+  button,select,input,textarea{font:inherit;color:inherit}
+  button,select{background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+  button:hover,select:hover{border-color:#4a5268}
+  button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,#screen:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+  button:disabled{opacity:.4;cursor:default}
+  .icon{width:34px;padding:6px 0;text-align:center;font-size:16px;line-height:1}
+
+  #tabs{display:flex;gap:4px;align-items:flex-end;padding:6px 8px 0;background:#10131a;overflow-x:auto;scrollbar-width:thin}
+  .tab{display:flex;align-items:center;gap:8px;max-width:220px;min-width:90px;padding:7px 8px 7px 12px;
+    background:#191d26;border:1px solid var(--line);border-bottom:0;border-radius:9px 9px 0 0;color:var(--dim);cursor:pointer;flex:0 0 auto}
+  .tab.active{background:var(--panel);color:var(--text);box-shadow:inset 0 2px 0 var(--blue)}
+  .tab span{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .tab b{font-weight:400;opacity:.6;padding:0 4px;border-radius:4px}
+  .tab b:hover{opacity:1;background:var(--raise)}
+  #newtab{flex:0 0 auto;margin-bottom:4px}
+
+  .bar{display:flex;gap:6px;align-items:center;padding:8px;background:var(--panel);border-bottom:1px solid var(--line)}
+  #url{flex:1;min-width:0;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
+  #url:focus{border-color:var(--blue)}
+
+  #stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;background:#0a0c10;overflow:hidden}
+  #screen{max-width:100%;max-height:100%;background:#fff;touch-action:none;user-select:none;-webkit-user-select:none;display:block}
+  #screen.idle{visibility:hidden}
+  #overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    text-align:center;color:var(--dim);pointer-events:none;padding:20px}
+  #overlay.hide{display:none}
+  #overlay strong{color:var(--text);font-size:16px;font-weight:600}
+  #overlay span{max-width:460px}
+  #overlay .big{font-size:60px;font-weight:700;line-height:1.05;color:var(--text);font-variant-numeric:tabular-nums}
+  #overlay button{pointer-events:auto;margin-top:12px;padding:8px 16px}
+
+  /* top strip: key (left) and key ID (right) */
+  #head{display:flex;align-items:center;gap:8px;padding:4px 8px;background:#0d1016;border-bottom:1px solid var(--line);min-height:36px}
+  #keybox{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+  #key{width:128px;flex:0 0 auto;height:26px;padding:0 8px;background:var(--ink);border:1px solid var(--line);border-radius:6px;
+    font:13px ui-monospace,Menlo,Consolas,monospace}
+  #key:focus{border-color:var(--blue)}
+  #keybtn{height:26px;padding:0 12px;font-size:12px;border-radius:6px}
+  #keymsg{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;color:var(--dim)}
+  #keymsg.ok{color:var(--ok)} #keymsg.err{color:var(--amber)}
+  #tagbadge{flex:0 0 auto;display:flex;align-items:center;gap:6px;height:24px;padding:0 9px;border:1px solid var(--line);border-radius:6px;
+    font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+  #tagbadge[hidden]{display:none}
+  #tagbadge b{font:600 13px ui-monospace,Menlo,Consolas,monospace;color:var(--text);letter-spacing:.1em}
+
+  /* compact bottom bar */
+  #foot{display:flex;gap:4px;align-items:center;padding:3px 6px;background:var(--panel);border-top:1px solid var(--line);font-size:12px}
+  #foot button,#foot select,#foot input{height:24px;padding:0 8px;font-size:12px;border-radius:6px}
+  #foot input{flex:1 1 90px;min-width:70px;max-width:320px;background:var(--ink);border:1px solid var(--line)}
+  #foot select{padding:0 4px}
+  #status{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--dim);font-variant-numeric:tabular-nums;padding-left:4px}
+  #dot{width:8px;height:8px;border-radius:50%;background:var(--red)}
+  #dot.on{background:var(--ok)}
+  #dot.busy{background:var(--amber)}
+
+  details{background:var(--panel);border-top:1px solid var(--line);padding:0 8px}
+  #jsbox[hidden]{display:none}
+  summary{padding:4px 0;font-size:12px;cursor:pointer;color:var(--dim)}
+  #console{display:grid;gap:6px;padding-bottom:8px}
+  #console textarea{width:100%;height:70px;resize:vertical;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:13px ui-monospace,Menlo,Consolas,monospace}
+  #console pre{margin:0;max-height:140px;overflow:auto;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:13px ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+
+  #toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);background:#3a2024;border:1px solid #7a3038;color:#ffd5d5;
+    padding:8px 14px;border-radius:8px;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s}
+  #toast.show{opacity:1}
+
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:min(440px,90vw);padding:18px}
+  dialog::backdrop{background:rgba(0,0,0,.55)}
+  dialog p{margin:0 0 12px;white-space:pre-wrap;word-break:break-word}
+  dialog input{width:100%;margin-bottom:12px;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
+  dialog .row{display:flex;gap:8px;justify-content:flex-end}
+  .primary{background:var(--blue);border-color:var(--blue);color:#0b1020;font-weight:600}
+
+  @media (max-width:640px){ .hide-s{display:none} }
+  @media (prefers-reduced-motion:reduce){ #toast{transition:none} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="head">
+    <div id="keybox">
+      <input id="key" type="text" maxlength="12" spellcheck="false" autocomplete="off" autocapitalize="off"
+             placeholder="Enter your key" aria-label="Access key">
+      <button id="keybtn" class="primary">Verify</button>
+      <span id="keymsg" role="status" aria-live="polite"></span>
+    </div>
+    <div id="tagbadge" hidden title="Your key's ID"><span>ID</span><b id="tagid"></b></div>
+  </div>
+
+  <div id="tabs" role="tablist" aria-label="Browser tabs"></div>
+
+  <div class="bar">
+    <button class="icon" id="back" title="Back" aria-label="Back">&#8592;</button>
+    <button class="icon" id="fwd" title="Forward" aria-label="Forward">&#8594;</button>
+    <button class="icon" id="reload" title="Reload" aria-label="Reload">&#8635;</button>
+    <input id="url" type="text" spellcheck="false" autocomplete="off" autocapitalize="off"
+           placeholder="Type a web address or search" aria-label="Address">
+    <button id="go" class="primary">Go</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="screen" tabindex="0" width="1280" height="720" class="idle" aria-label="Remote Firefox screen"></canvas>
+    <div id="overlay"><strong>Looking for the host computer&hellip;</strong></div>
+  </div>
+
+  <div id="foot">
+    <input id="typetext" type="text" placeholder="Type text to send&hellip;" aria-label="Text to type into the page">
+    <button id="typesend" title="Type this text into the focused field on the page">Send</button>
+    <select id="vp" title="Browser window size" aria-label="Browser window size">
+      <option value="fit">Fit</option>
+      <option value="1280x720" selected>1280&times;720</option>
+      <option value="1366x768">1366&times;768</option>
+      <option value="1600x900">1600&times;900</option>
+      <option value="1920x1080">1920&times;1080</option>
+    </select>
+    <select id="qual" title="Image quality" aria-label="Image quality">
+      <option value="45,0.6">Fast</option>
+      <option value="65,1" selected>Normal</option>
+      <option value="85,1">Sharp</option>
+    </select>
+    <button id="copysel" class="hide-s" title="Copy the text selected in Firefox to your clipboard">Copy</button>
+    <button id="save" class="hide-s" title="Download the current frame as an image">Save</button>
+    <div id="status"><span id="dot"></span><span id="fps">0 fps</span></div>
+  </div>
+
+  <details id="jsbox" hidden>
+    <summary>Run JavaScript on the page</summary>
+    <div id="console">
+      <textarea id="code" spellcheck="false" placeholder="return document.title   (Ctrl+Enter to run)"></textarea>
+      <div><button id="run">Run</button></div>
+      <pre id="out" hidden></pre>
+    </div>
+  </details>
+</div>
+
+<div id="toast" role="status"></div>
+
+<dialog id="dlg">
+  <p id="dlgtext"></p>
+  <input id="dlginput" placeholder="Reply (only for prompts)">
+  <div class="row"><button id="dlgno">Cancel</button><button id="dlgyes" class="primary">OK</button></div>
+</dialog>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const canvas = $('#screen'), ctx = canvas.getContext('2d');
+  const params = new URLSearchParams(location.search);
+  const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const manual = params.get('server') || '';          // optional override, handy for testing
+  const token = params.get('token') || '';
+  let ws = null, loading = false, retry = null;
+  let phase = 'locked';       // locked (no key yet) -> connecting -> queued -> active -> ended
+  let ended = false, idleSecs = 180, keyInfo = null;
+
+  const store = {
+    get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  };
+  // A random id for this browser. A key is tied to the first device that uses it.
+  const device = (() => {
+    let d = store.get('fr_device');
+    if (!d || !/^[A-Za-z0-9_-]{16,64}$/.test(d)) {
+      d = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '')
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+      store.set('fr_device', d);
+    }
+    return d;
+  })();
+
+  const send = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
+
+  const REASONS = r => ({
+    hidden: 'You switched to another browser tab, so your Firefox window was closed.',
+    idle: `You were inactive for ${Math.round(idleSecs / 60)} minutes, so your Firefox window was closed.`,
+    blocked: 'The address or page you opened contains a blocked term, so your Firefox window was closed.',
+    lost: 'Your connection dropped (or your device went to sleep), so your Firefox window was closed.',
+    sleep: 'Your device went to sleep or its lid was closed, so your Firefox window was closed.',
+    missed_turn: 'It was your turn, but this tab was in the background, so your spot went to the next person.',
+    error: 'Firefox stopped working on the host computer.',
+    replaced: 'This key was opened in another tab or window, so this session ended.',
+    verify_failed: 'We couldn\u2019t verify your key just now. Please try again in a moment.',
+  }[r] || 'Your session ended.');
+
+  // Problems with the key itself: shown in the key box too, and no "refresh" needed - just enter a valid key.
+  const KEYEND = {
+    key_revoked: ['Your key is no longer valid', 'It was deactivated.'],
+    key_expired: ['Your key is no longer valid', 'It has expired.'],
+    key_used: ['This key can\u2019t be used', 'This key has already been used.'],
+    key_invalid: ['This key can\u2019t be used', 'Please enter a valid key.'],
+  };
+
+  function setOverlay(title, sub, o) {
+    const el = $('#overlay');
+    if (!title) { el.classList.add('hide'); return; }
+    el.classList.remove('hide');
+    el.textContent = '';
+    const s = document.createElement('strong'); s.textContent = title; el.append(s);
+    if (o && o.big) { const b = document.createElement('div'); b.className = 'big'; b.textContent = o.big; el.append(b); }
+    if (sub) { const p = document.createElement('span'); p.textContent = sub; el.append(p); }
+    if (o && o.button) {
+      const b = document.createElement('button'); b.className = 'primary'; b.textContent = 'Refresh page';
+      b.onclick = () => location.reload(); el.append(b);
+    }
+  }
+
+  // Final state: the session is over. No automatic reconnect - the person refreshes (or enters a key) to rejoin.
+  function end(reason) {
+    if (ended) return;
+    ended = true; phase = 'ended'; clearTimeout(retry);
+    if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} ws = null; }
+    gotFrame = false; latest = null;
+    canvas.classList.add('idle');
+    $('#dot').className = '';
+    $('#tagbadge').hidden = true;
+    if (dlg.open) dlg.close();
+    if (KEYEND[reason]) {
+      const [title, why] = KEYEND[reason];
+      document.title = 'Key problem \u2013 Firefox Remote';
+      setKeyMsg(why, 'err');
+      setOverlay(title, why + ' Enter a valid key in the box at the top left to continue.');
+      return;
+    }
+    document.title = 'Disconnected \u2013 Firefox Remote';
+    setOverlay('You\u2019ve been disconnected',
+      REASONS(reason) + ' Refresh the page to reconnect \u2013 if all the browsers are in use, you\u2019ll be placed in line.',
+      {button: true});
+  }
+
+  function toWs(base) {
+    let s = base.trim().replace(/\/+$/, '');
+    if (/^https?:\/\//i.test(s)) s = s.replace(/^http/i, 'ws');
+    else if (!/^wss?:\/\//i.test(s)) s = 'wss://' + s;
+    return s + '/ws' + (token ? '?token=' + encodeURIComponent(token) : '');
+  }
+
+  // Where is the computer right now? (server.py registers its tunnel address with /api/server)
+  async function findServer() {
+    if (manual) return {url: toWs(manual)};
+    if (isLocal) return {url: toWs((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)};
+    try {
+      const r = await fetch('/api/server', {cache: 'no-store'});
+      const j = await r.json();
+      if (j.url) return {url: toWs(j.url)};
+      return {error: j.error || ''};
+    } catch (e) { return {error: 'Could not reach the site\u2019s API'}; }
+  }
+
+  async function connect() {
+    clearTimeout(retry);
+    if (ended) return;
+    if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    const found = await findServer();
+    if (!found.url) {
+      setOverlay('Waiting for the host computer',
+        found.error ? found.error : 'It looks offline right now. This page connects by itself when it\u2019s back.');
+      retry = setTimeout(connect, 3000);
+      return;
+    }
+    ws = new WebSocket(found.url);
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => {
+      $('#dot').className = 'on';
+      send({t: 'hello', visible: !document.hidden, key: keyInfo ? keyInfo.key : '', device});
+      applyQuality();
+      if (phase === 'connecting') setOverlay('Connecting\u2026', 'Checking for a free browser');
+    };
+    ws.onclose = () => {
+      if (ended) return;
+      $('#dot').className = '';
+      if (phase === 'connecting') {          // never got a response: keep trying to reach the host
+        setOverlay('Reconnecting\u2026', 'Looking for the host computer again');
+        retry = setTimeout(connect, 1500);
+        return;
+      }
+      end('lost');
+    };
+    ws.onmessage = ev => {
+      if (typeof ev.data !== 'string') return onFrame(ev.data);
+      const m = JSON.parse(ev.data);
+      ({
+        state: onState, error: m => toast(m.msg), alert: onAlert,
+        config: m => { $('#jsbox').hidden = !m.js; if (m.idle) idleSecs = m.idle; },
+        queue: m => {
+          phase = 'queued';
+          document.title = `#${m.pos} in line \u2013 Firefox Remote`;
+          setOverlay('You\u2019re in line', `${m.total} waiting \u00b7 all ${m.max} browsers are in use. Keep this page open \u2013 you\u2019ll be let in automatically.`, {big: '#' + m.pos});
+        },
+        turn: () => {
+          phase = 'queued';
+          document.title = 'Your turn! \u2013 come back';
+          setOverlay('It\u2019s your turn', 'Switch back to this tab to start your browser.');
+        },
+        admitted: () => {
+          phase = 'active';
+          document.title = 'Firefox Remote';
+          setOverlay('Starting Firefox\u2026', 'Your own browser window is opening on the host computer.');
+        },
+        kicked: m => end(m.reason),
+        idle_warn: m => { idleWarn = true; toast(`Still there? You\u2019ll be disconnected in ${m.secs} seconds unless you move the mouse or type.`, false, 30000); },
+        js_result: m => { const o = $('#out'); o.hidden = false; o.textContent = m.text; },
+        selection: onSelection,
+      }[m.t] || (() => {}))(m);
+    };
+  }
+
+  /* ---------- frames ---------- */
+  let latest = null, decoding = false, gotFrame = false, frames = 0;
+  function onFrame(buf) {
+    if (ended) return;
+    if (latest) send({t: 'ack'});         // we skipped one: free its slot right away
+    latest = buf;
+    if (!decoding) decodeLoop();
+  }
+  async function decodeLoop() {
+    decoding = true;
+    while (latest) {
+      const buf = latest; latest = null;
+      try {
+        const bmp = await createImageBitmap(new Blob([buf], {type: 'image/jpeg'}));
+        if (canvas.width !== bmp.width || canvas.height !== bmp.height) {
+          canvas.width = bmp.width; canvas.height = bmp.height;
+        }
+        ctx.drawImage(bmp, 0, 0);
+        bmp.close();
+        frames++;
+        if (!gotFrame) { gotFrame = true; canvas.classList.remove('idle'); setOverlay(null); canvas.focus(); }
+      } catch (e) { /* bad frame, ignore */ }
+      send({t: 'ack'});
+    }
+    decoding = false;
+  }
+  setInterval(() => { $('#fps').textContent = frames + ' fps'; frames = 0; }, 1000);
+
+  /* ---------- browser state ---------- */
+  function onState(s) {
+    loading = s.loading;
+    if (document.activeElement !== $('#url')) $('#url').value = s.url === 'about:blank' ? '' : s.url;
+    document.title = (s.title || 'Firefox Remote') + ' \u2013 Firefox Remote';
+    $('#reload').innerHTML = loading ? '&#10005;' : '&#8635;';
+    $('#reload').title = loading ? 'Stop loading' : 'Reload';
+    $('#dot').className = loading ? 'busy' : 'on';
+    renderTabs(s.tabs);
+  }
+  function renderTabs(tabs) {
+    const el = $('#tabs'); el.textContent = '';
+    tabs.forEach(t => {
+      const d = document.createElement('div');
+      d.className = 'tab' + (t.active ? ' active' : '');
+      d.setAttribute('role', 'tab');
+      const s = document.createElement('span'); s.textContent = t.title || 'New tab';
+      const x = document.createElement('b'); x.textContent = '\u00d7'; x.title = 'Close tab';
+      x.onclick = e => { e.stopPropagation(); send({t: 'close', id: t.id}); };
+      d.onclick = () => send({t: 'switch', id: t.id});
+      d.append(s, x); el.append(d);
+    });
+    const n = document.createElement('button');
+    n.id = 'newtab'; n.className = 'icon'; n.textContent = '+'; n.title = 'New tab';
+    n.onclick = () => { send({t: 'newtab'}); $('#url').focus(); };
+    el.append(n);
+  }
+
+  /* ---------- toolbar ---------- */
+  $('#back').onclick = () => send({t: 'back'});
+  $('#fwd').onclick = () => send({t: 'forward'});
+  $('#reload').onclick = () => send({t: loading ? 'stop' : 'reload'});
+  const go = () => { const v = $('#url').value.trim(); if (v) { send({t: 'go', url: v}); canvas.focus(); } };
+  $('#go').onclick = go;
+  $('#url').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  $('#url').addEventListener('focus', e => e.target.select());
+
+  const sendText = () => { const i = $('#typetext'); if (i.value) { send({t: 'text', text: i.value}); i.value = ''; } };
+  $('#typesend').onclick = sendText;
+  $('#typetext').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { sendText(); send({t: 'key', key: 'Enter', mods: []}); }
+  });
+
+  function applyQuality() {
+    const [q, s] = $('#qual').value.split(',').map(Number);
+    send({t: 'quality', q, s});
+  }
+  $('#qual').onchange = applyQuality;
+
+  let fitTimer = null;
+  function applyViewport() {
+    const v = $('#vp').value;
+    if (v === 'fit') {
+      const r = $('#stage').getBoundingClientRect();
+      send({t: 'viewport', w: Math.round(r.width), h: Math.round(r.height)});
+    } else {
+      const [w, h] = v.split('x').map(Number);
+      send({t: 'viewport', w, h});
+    }
+  }
+  $('#vp').onchange = applyViewport;
+  window.addEventListener('resize', () => {
+    if ($('#vp').value === 'fit') { clearTimeout(fitTimer); fitTimer = setTimeout(applyViewport, 400); }
+  });
+
+  $('#save').onclick = () => canvas.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = 'firefox-' + Date.now() + '.png'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  $('#copysel').onclick = () => send({t: 'getsel'});
+  async function onSelection(m) {
+    if (!m.text) return toast('Nothing is selected in Firefox', true);
+    try { await navigator.clipboard.writeText(m.text); toast('Copied ' + m.text.length + ' characters', true); }
+    catch { window.prompt('Copy this text:', m.text); }
+  }
+
+  /* ---------- JS console ---------- */
+  const runJs = () => send({t: 'js', code: $('#code').value});
+  $('#run').onclick = runJs;
+  $('#code').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runJs(); } });
+
+  /* ---------- alert / confirm / prompt from the page ---------- */
+  const dlg = $('#dlg');
+  function onAlert(m) {
+    $('#dlgtext').textContent = m.text; $('#dlginput').value = '';
+    if (!dlg.open) dlg.showModal();
+  }
+  const answer = ok => { send({t: 'alert_resp', accept: ok, text: $('#dlginput').value}); dlg.close(); };
+  $('#dlgyes').onclick = () => answer(true);
+  $('#dlgno').onclick = () => answer(false);
+  dlg.addEventListener('cancel', e => { e.preventDefault(); answer(false); });
+
+  /* ---------- toast ---------- */
+  let toastTimer;
+  function toast(msg, good, ms) {
+    const t = $('#toast'); t.textContent = msg;
+    t.style.background = good ? '#1f3328' : ''; t.style.borderColor = good ? '#2f6b4a' : ''; t.style.color = good ? '#d5ffe8' : '';
+    t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms || 3500);
+  }
+  function hideToast() { clearTimeout(toastTimer); $('#toast').classList.remove('show'); }
+
+  /* ---------- mouse / touch on the screen ---------- */
+  const norm = e => { const r = canvas.getBoundingClientRect(); return {x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height}; };
+  let lastMove = 0, touch = null;
+
+  canvas.addEventListener('pointerdown', e => {
+    canvas.focus(); canvas.setPointerCapture(e.pointerId);
+    if (e.pointerType === 'touch') {
+      touch = {x: e.clientX, y: e.clientY, t: performance.now(), moved: false, p: norm(e)};
+      return;
+    }
+    send({t: 'down', ...norm(e), b: e.button});
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch') {
+      if (!touch) return;
+      const dx = touch.x - e.clientX, dy = touch.y - e.clientY;
+      if (!touch.moved && Math.abs(dx) + Math.abs(dy) < 8) return;
+      touch.moved = true; touch.x = e.clientX; touch.y = e.clientY;
+      const k = canvas.width / canvas.getBoundingClientRect().width;
+      send({t: 'scroll', ...touch.p, dx: dx * k, dy: dy * k});
+      return;
+    }
+    const now = performance.now();
+    if (now - lastMove < 35) return;
+    lastMove = now;
+    send({t: 'move', ...norm(e)});
+  });
+  const release = e => {
+    if (e.pointerType === 'touch') {
+      if (touch && !touch.moved && performance.now() - touch.t < 500 && e.type === 'pointerup') {
+        send({t: 'down', ...touch.p, b: 0}); send({t: 'up', ...touch.p, b: 0});
+      }
+      touch = null; return;
+    }
+    send({t: 'up', ...norm(e), b: e.button});
+  };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  let wacc = null, wtimer = null;
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvas.height : 1;
+    const p = norm(e);
+    if (!wacc) wacc = {dx: 0, dy: 0};
+    Object.assign(wacc, p); wacc.dx += e.deltaX * k; wacc.dy += e.deltaY * k;
+    if (!wtimer) wtimer = setTimeout(() => { send({t: 'scroll', ...wacc}); wacc = null; wtimer = null; }, 25);
+  }, {passive: false});
+
+  /* ---------- keyboard on the screen ---------- */
+  const IGNORE = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'Dead', 'Process', 'Unidentified', 'ContextMenu']);
+  canvas.addEventListener('keydown', e => {
+    if (IGNORE.has(e.key) || e.isComposing) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') return;   // 'paste' event handles this
+    e.preventDefault();
+    const mods = [];
+    if (e.ctrlKey) mods.push('ctrl'); if (e.altKey) mods.push('alt');
+    if (e.metaKey) mods.push('meta'); if (e.shiftKey) mods.push('shift');
+    send({t: 'key', key: e.key, mods});
+  });
+  document.addEventListener('paste', e => {
+    if (document.activeElement !== canvas) return;
+    const text = e.clipboardData && e.clipboardData.getData('text');
+    if (text) { e.preventDefault(); send({t: 'text', text}); }
+  });
+
+  /* ---------- access key ---------- */
+  const KEY_MSG = {
+    invalid: 'Please enter a valid key.',
+    used: 'This key has already been used.',
+    deactivated: 'This key is no longer valid.',
+    expired: 'This key has expired.',
+    rate: 'Too many attempts. Please wait a few minutes and try again.',
+    error: 'Couldn\u2019t reach the verification service. Please try again.',
+  };
+  const KIND = {s: 'Standard', d: 'Demo', p: 'Permanent'};
+  const setKeyMsg = (t, cls) => { const e = $('#keymsg'); e.textContent = t || ''; e.className = cls || ''; e.title = t || ''; };
+
+  function timeLeft(ms) {
+    const m = Math.floor(ms / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    if (d >= 1) return `${d}d ${h % 24}h`;
+    if (h >= 1) return `${h}h ${m % 60}m`;
+    return `${Math.max(m, 1)}m`;
+  }
+  function showKeyInfo() {
+    if (!keyInfo) return;
+    $('#tagid').textContent = keyInfo.tag;
+    $('#tagbadge').hidden = false;
+    const left = !keyInfo.expires ? 'never expires'
+      : keyInfo.expires <= Date.now() ? 'expired' : timeLeft(keyInfo.expires - Date.now()) + ' left';
+    setKeyMsg(`\u2713 Verified \u00b7 ${KIND[keyInfo.kind] || 'Key'} \u00b7 ${left}`, 'ok');
+  }
+  setInterval(() => { if ($('#keymsg').className === 'ok') showKeyInfo(); }, 30000);
+
+  async function verifyKey(raw) {
+    const key = raw.trim().replace(/^./, c => c.toLowerCase());
+    if (!key) { setKeyMsg(KEY_MSG.invalid, 'err'); return; }
+    $('#keybtn').disabled = true; setKeyMsg('Checking\u2026');
+    let r;
+    try {
+      const resp = await fetch('/api/verify', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key, device})});
+      r = await resp.json();
+    } catch (e) { r = {ok: false, reason: 'error'}; }
+    $('#keybtn').disabled = false;
+    if (!r.ok) { setKeyMsg(KEY_MSG[r.reason] || KEY_MSG.invalid, 'err'); return; }
+
+    store.set('fr_key', r.key);
+    $('#key').value = r.key;
+    // A different key, or the session already ended: start clean (the saved key is verified again on load).
+    if (ended || (keyInfo && keyInfo.key !== r.key)) { location.reload(); return; }
+    keyInfo = r;
+    showKeyInfo();
+    if (phase === 'locked') { phase = 'connecting'; setOverlay('Connecting\u2026', 'Checking for a free browser'); connect(); }
+  }
+  $('#keybtn').onclick = () => verifyKey($('#key').value);
+  $('#key').addEventListener('keydown', e => { if (e.key === 'Enter') verifyKey($('#key').value); });
+
+  /* ---------- session rules ---------- */
+  let idleWarn = false, lastAct = 0, lastTick = Date.now();
+
+  // 1) Switching to another browser tab ends the session (and tells the server).
+  document.addEventListener('visibilitychange', () => {
+    send({t: 'vis', visible: !document.hidden});
+    if (document.hidden && phase === 'active') end('hidden');
+  });
+
+  // 2) Heartbeat: the host drops you if it stops hearing from you (closed lid, no network).
+  setInterval(() => send({t: 'ping'}), 4000);
+
+  // 3) If this page's timers were frozen (laptop lid closed / device slept), end on wake-up.
+  setInterval(() => {
+    const now = Date.now();
+    if (phase === 'active' && now - lastTick > 8000) end('sleep');
+    lastTick = now;
+  }, 1000);
+
+  // 4) Any input counts as activity (resets the idle timer on the host).
+  const activity = () => {
+    const now = Date.now();
+    if (now - lastAct < 3000) return;
+    lastAct = now;
+    if (phase === 'active') send({t: 'activity'});
+    if (idleWarn) { idleWarn = false; hideToast(); }
+  };
+  ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']
+    .forEach(ev => document.addEventListener(ev, activity, {passive: true, capture: true}));
+
+  // Leaving the page: tell the host right away so the slot frees up.
+  window.addEventListener('pagehide', () => send({t: 'leave'}));
+
+  renderTabs([]);
+  if (isLocal) {                      // served by server.py itself: local testing, run it with --no-keys
+    $('#keybox').style.visibility = 'hidden';
+    phase = 'connecting'; connect();
+  } else {
+    setOverlay('Enter your key', 'Type your key in the box at the top left and press Verify.');
+    const saved = store.get('fr_key');          // returning visitors are verified automatically
+    if (saved) { $('#key').value = saved; verifyKey(saved); } else $('#key').focus();
+  }
+})();
+</script>
+</body>
+</html>
