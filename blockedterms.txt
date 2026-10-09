@@ -52,6 +52,15 @@ nude videos
 naked videos
 cam girls
 webcam sex
+# ============================================================
+# THIS SECTION IS INCLUDED IN THE PORNOGRAPHY CATEGORY BUT
+# HAS BEEN ADDED SPECIFICALLY BECAUSE OF HUCK
+# ============================================================
+yaoi
+yuri
+# ============================================================
+# HUCK'S SECTION ENDS HERE
+# ============================================================
 # Catch common spacing/separator tricks around explicit terms.
 re:\b(?:p\s*o\s*r\s*n|p\s*o\s*r\s*n\s*o\s*g\s*r\s*a\s*p\s*h\s*y)\b
 re:\b(?:n\s*s\s*f\s*w)\b
